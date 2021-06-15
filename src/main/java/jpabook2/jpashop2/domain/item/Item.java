@@ -27,7 +27,6 @@ public abstract class Item {
     private List<Category> categories = new ArrayList<>();
 
     //==비지니스 로직==//
-
     /**
      * stock 증가
      */
