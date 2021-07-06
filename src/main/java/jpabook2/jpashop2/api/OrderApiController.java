@@ -6,6 +6,10 @@ import jpabook2.jpashop2.domain.OrderItem;
 import jpabook2.jpashop2.domain.OrderStatus;
 import jpabook2.jpashop2.repository.OrderRepository;
 import jpabook2.jpashop2.repository.OrderSearch;
+import jpabook2.jpashop2.repository.order.query.OrderFlatDto;
+import jpabook2.jpashop2.repository.order.query.OrderItemQueryDto;
+import jpabook2.jpashop2.repository.order.query.OrderQueryDto;
+import jpabook2.jpashop2.repository.order.query.OrderQueryRepository;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,8 +17,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class OrderApiController {
 
     private final OrderRepository orderRepository;
+    private final OrderQueryRepository orderQueryRepository;
 
     @GetMapping("/api/v1/orders")
     public List<Order> ordersV1() {
@@ -87,6 +90,35 @@ public class OrderApiController {
         return new Result(result);
     }
 
+    /**
+     * V4. JPA에서 DTO로 바로 조회
+     * - 쿼리 1번 호출
+     * - select 절에서 원하는 데이터만 선택해서 조회
+     */
+    @GetMapping("/api/v4/orders")
+    public Result ordersV4() {
+        return new Result(orderQueryRepository.findOrderQueryDtos());
+    }
+
+    @GetMapping("/api/v5/orders")
+    public Result ordersV5() {
+        return new Result(orderQueryRepository.findAllByDto_optimization());
+    }
+
+    @GetMapping("/api/v6/orders")
+    public List<OrderQueryDto> ordersV6() {
+        List<OrderFlatDto> flats = orderQueryRepository.findAllByDto_flat();
+
+        return flats.stream()
+                .collect(Collectors.groupingBy(o -> new OrderQueryDto(o.getOrderId(), o.getName(), o.getOrderDate(), o.getOrderStatus(),
+                        o.getAddress()), Collectors.mapping(o -> new OrderItemQueryDto(o.getOrderId(), o.getItemName(),
+                        o.getOrderPrice(), o.getCount()), Collectors.toList())
+                )).entrySet().stream()
+                .map(e -> new OrderQueryDto(e.getKey().getOrderId(), e.getKey().getName(), e.getKey().getOrderDate(),
+                        e.getKey().getOrderStatus(), e.getKey().getAddress(), e.getValue()))
+                .collect(Collectors.toList());
+    }
+
     @Getter
     static class OrderDto {
         private Long orderId;
@@ -128,7 +160,7 @@ public class OrderApiController {
     @Getter
     static class Result<T> {
         private T data;
-        public Result(List<OrderDto> result) {
+        public Result(List<T> result) {
             data = (T) result;
         }
     }
